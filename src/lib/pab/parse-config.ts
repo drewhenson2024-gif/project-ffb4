@@ -75,3 +75,14 @@ export function tierLabel(tier: string): string {
 export function positionLabel(position: Position): string {
   return position;
 }
+
+export function formatLeagueConfigSummary(config: LeagueConfig): string {
+  const s = config.starting;
+  const scoring =
+    config.scoring === "half_ppr"
+      ? "half-PPR"
+      : config.scoring === "standard"
+        ? "standard"
+        : "PPR";
+  return `${config.teams}-team ${scoring}, starters ${s.QB}/${s.RB}/${s.WR}/${s.TE}, ${config.benchSpots} bench`;
+}

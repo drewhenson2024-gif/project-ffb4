@@ -51,3 +51,4 @@ supabase/.temp/
 
 # internal git-history build snapshots (not part of the app)
 scripts/_snapshots/
+scripts/.cache/

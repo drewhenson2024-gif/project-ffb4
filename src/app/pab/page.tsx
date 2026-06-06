@@ -1,9 +1,8 @@
 import { LeagueConfigForm } from "@/components/league-config-form";
 import { PabResults } from "@/components/pab-results";
 import { computePabRates } from "@/lib/pab/compute-pab";
-import { parseLeagueConfig } from "@/lib/pab/parse-config";
+import { resolveLeagueConfig } from "@/lib/pab/resolve-league-config";
 import { loadPabSeasons } from "@/lib/pab/season-data";
-import { DEFAULT_LEAGUE_CONFIG } from "@/lib/pab/types";
 import { createServerClient } from "@/lib/supabase/server";
 import Link from "next/link";
 
@@ -13,8 +12,7 @@ type PabPageProps = {
 
 export default async function PabPage({ searchParams }: PabPageProps) {
   const params = await searchParams;
-  const hasParams = Object.keys(params).length > 0;
-  const config = hasParams ? parseLeagueConfig(params) : DEFAULT_LEAGUE_CONFIG;
+  const config = await resolveLeagueConfig(params);
 
   const supabase = createServerClient();
   let years: number[] = [];

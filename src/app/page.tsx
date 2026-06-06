@@ -59,6 +59,18 @@ export default async function Home() {
               >
                 PAB calculations →
               </Link>
+              <Link
+                href="/valuations"
+                className="inline-flex w-fit items-center rounded-full border border-emerald-500/40 px-6 py-3 text-sm font-semibold text-emerald-300 transition-colors hover:border-emerald-400 hover:text-emerald-200"
+              >
+                Active valuations →
+              </Link>
+              <Link
+                href="/draft-capital"
+                className="inline-flex w-fit items-center rounded-full border border-emerald-500/40 px-6 py-3 text-sm font-semibold text-emerald-300 transition-colors hover:border-emerald-400 hover:text-emerald-200"
+              >
+                Draft capital →
+              </Link>
             </div>
           </>
         ) : (

@@ -1,5 +1,9 @@
 "use client";
 
+import {
+  LEAGUE_CONFIG_COOKIE,
+  serializeLeagueConfig,
+} from "@/lib/pab/league-config-cookie";
 import { configToSearchParams } from "@/lib/pab/parse-config";
 import type { LeagueConfig, ScoringStyle } from "@/lib/pab/types";
 import { useRouter } from "next/navigation";
@@ -26,6 +30,8 @@ export function LeagueConfigForm({ config }: LeagueConfigFormProps) {
       taxiSpots: Number(form.get("taxi")),
       scoring: form.get("scoring") as ScoringStyle,
     };
+    const serialized = serializeLeagueConfig(next);
+    document.cookie = `${LEAGUE_CONFIG_COOKIE}=${encodeURIComponent(serialized)}; path=/; max-age=31536000; SameSite=Lax`;
     const params = configToSearchParams(next);
     router.push(`/pab?${params.toString()}`);
   }

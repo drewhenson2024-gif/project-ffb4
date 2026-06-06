@@ -11,6 +11,7 @@
     "backtest:projection": "tsx scripts/backtest-projections.ts",
     "sweep:comp": "tsx scripts/sweep-comp-variants.ts",
     "sweep:regression": "tsx scripts/sweep-regression-variants.ts",
+    "sweep:draft-smooth": "tsx scripts/sweep-draft-capital-smooth.ts",
     "db:push": "npx supabase db push",
     "db:link": "npx supabase link",
     "db:login": "npx supabase login"
