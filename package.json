@@ -7,7 +7,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "import:data": "tsx scripts/import-nflverse.ts"
+    "import:data": "tsx scripts/import-nflverse.ts",
+    "db:push": "npx supabase db push",
+    "db:link": "npx supabase link",
+    "db:login": "npx supabase login"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.107.0",
