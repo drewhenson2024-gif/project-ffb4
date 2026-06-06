@@ -16,14 +16,14 @@ Track build progress here. Status: `planned` → `in-progress` → `done`.
 | 09 — Import dedupe fix | `feature/09-import-dedupe` | [phases/09-import-dedupe.md](./phases/09-import-dedupe.md) | done |
 | — Baseline verified | — | [02-fresh-start-setup.md](./02-fresh-start-setup.md) | done |
 | 10 — PAB calculations | `feature/10-player-evaluation` | [phases/10-pab-calculations.md](./phases/10-pab-calculations.md) | done |
-| 11 — Career projections | `feature/11-projections` | *(not started)* | planned |
+| 11 — Career projections | `feature/11-projections` | [phases/11-career-projections.md](./phases/11-career-projections.md) | design review |
 | 12 — Player valuation UI | `feature/12-valuation` | *(not started)* | planned |
 
 ## Current status
 
 **Phase 10 complete:** PAB tier rates and `/pab` page merged to `main`.
 
-**Working on next:** Phase 11 — career projections (design doc first).
+**Working on next:** Phase 11 — career projections ([design doc](./phases/11-career-projections.md); edit methods before implementation).
 
 ## Deferred to phase 11+
 
