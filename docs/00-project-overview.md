@@ -8,7 +8,11 @@ A **minimal fantasy football player database** built with Next.js and Supabase. 
 
 FFB3 proved the core data pipeline and UI worked well. It became hard to maintain once we added **player valuation and career projections** — that work grew quickly, was hard to test, and the repo history became difficult to follow.
 
-FFB4 is a **clean restart** that keeps only what worked:
+FFB4 is a **clean restart** — new GitHub repo, new Supabase project, new data import. We keep only the *code patterns* from FFB3 that worked; we do **not** reuse FFB3's database, API keys, or repository.
+
+See [02-fresh-start-setup.md](./02-fresh-start-setup.md) for creating new infrastructure.
+
+FFB4 keeps only what worked:
 
 | Included (working) | Excluded (deferred) |
 |---|---|

@@ -45,3 +45,9 @@ next-env.d.ts
 
 # nflverse download cache
 /data/cache/
+
+# supabase CLI local state (linked project ref is in .temp/)
+supabase/.temp/
+
+# internal git-history build snapshots (not part of the app)
+scripts/_snapshots/

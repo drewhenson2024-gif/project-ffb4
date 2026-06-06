@@ -1,8 +1,11 @@
 # project-ffb4
 
-A clean rebuild of the fantasy football player database from FFB3 — minimal scope, documented phases, and disciplined git history.
+A clean rebuild of the fantasy football player database — **new GitHub repo, new Supabase database, fresh data import.** Code lessons from FFB3; infrastructure starts from zero.
 
-**Read first:** [docs/00-project-overview.md](docs/00-project-overview.md) and [docs/01-git-workflow.md](docs/01-git-workflow.md)
+**Read first:**
+- [docs/00-project-overview.md](docs/00-project-overview.md) — what this project is
+- [docs/02-fresh-start-setup.md](docs/02-fresh-start-setup.md) — create new Supabase + GitHub (do not reuse FFB3)
+- [docs/01-git-workflow.md](docs/01-git-workflow.md) — how we use git
 
 ## Stack
 
@@ -24,7 +27,7 @@ npm install
 cp .env.example .env.local
 ```
 
-Fill in Supabase URL and keys from the [Supabase dashboard](https://supabase.com/dashboard).
+Create a **new** Supabase project and fill in its URL and keys — do not use FFB3 credentials. Full steps: [docs/02-fresh-start-setup.md](docs/02-fresh-start-setup.md).
 
 3. Run migrations in the Supabase SQL Editor (in order):
 
