@@ -424,31 +424,96 @@ Some cells may stay the same after rerun (values already on a 10% boundary). Oth
 | 0 seasons | no data |
 | Current rookie | `firstSeason = CURRENT_SEASON` and `lastSeason = CURRENT_SEASON` and ≤1 season — too little signal |
 
-### Estimated total career length (for quartile on active players)
+### Remaining seasons estimate (for quartile on active players)
 
-Active players do not know `totalSeasons` yet. Estimate before building checkpoint:
+Active players may be **about to retire** — do not force `yearsPlayed + 2` or take `max()` across optimistic paths.
+
+**Goal:** estimate `remainingSeasons` (calendar NFL seasons left), then:
 
 ```
-medianFloor = max(medianCareerLength[position], yearsPlayed + 2)
+estimatedTotal = yearsPlayed + remainingSeasons
+careerQuartile = careerQuartile(yearsPlayed, estimatedTotal)
+```
 
-ageBasedTotal = yearsPlayed + max(1, retireAge - playerAge)
-  retireAge = POSITION_RETIRE_AGE[position] + eliteBonus + recentBonus
+Quartile picks the tier-regression model and comp blend (Steps 4–6). Tier PAB is predicted **after** quartile is set.
 
-productivePath = yearsPlayed + (recent affects length ? 5 : 2)  [if ≥2 recent valuable seasons]
-recentElitePath  = yearsPlayed + 8  [if recent elite + peak elite, when recent affects length]
+#### Survivorship bias — what we avoid
 
-estimatedTotal = max(medianFloor, ageBasedTotal, productivePath, recentElitePath)
+**Wrong question:** “RBs typically play 6 seasons, so a year-8 RB has 0 left.”
+
+That uses the **unconditional** population median and ignores that reaching year 8 means the player is already a **survivor** — not the same pool as year-1 RBs who washed out by year 3.
+
+**Wrong for year 1 too:** assigning every rookie the same ~6-year lifespan from a position median ignores draft capital, role, and production profile.
+
+**Right question:** “Among RBs who **reached year 8 with this profile** (tiers, age, draft, recent form), how many **more** seasons did they typically play?”
+
+That is a **conditional** estimate at the checkpoint — the same framing as tier comps in Step 5.
+
+| Approach | Survivorship-safe? |
+|----------|-------------------|
+| `medianCareerLength - yearsPlayed` | **No** — do not use |
+| OLS on checkpoints (`yearsPlayed` + features → remaining) | **Yes** — trains only on players who reached that year |
+| Comp mean remaining seasons (same match rules as Step 5) | **Yes** — compares to peers at the same career stage |
+
+#### Primary: OLS on remaining calendar seasons (conditional)
+
+Train on the **same checkpoints** as Step 4. Each row is a player who **actually reached** `yearsPlayed` with a known `totalSeasons` afterward.
+
+| | Tier models (Step 4) | Career-length model (Step 7) |
+|--|----------------------|------------------------------|
+| Targets | `remainingTiers.elite/star/starter` | `remainingCalendarSeasons = totalSeasons - yearsPlayed` |
+| Grouping | position × quartile | **position only** (avoids circular quartile dependency) |
+| Recent features | scaled by `recentFeatureScale` (default 0) | **always full scale** (all factors count for longevity) |
+
+`yearsPlayed` is a feature — the model learns different slopes for year 1 vs year 8 vs year 12.
+
+```
+remainingSeasons = max(0, predictOls(careerLengthModel[position], features))
+estimatedTotal   = yearsPlayed + remainingSeasons
+```
+
+**Example:** Year-8 RB with strong tier history may predict `remainingSeasons ≈ 2` because training rows at year 8 with similar elite/star counts often played 10–11 total — not because population median RB career is 6.
+
+A year-8 RB with weak tiers and high age may predict `≈ 0` — legitimately near retirement.
+
+#### Fallback: comp mean remaining seasons (conditional)
+
+When OLS sample is too small, use the **same comp pool and match rules as Step 5** (tight → loose), but average **calendar seasons left** instead of tier counts:
+
+```
+compRemainingSeasons = mean(
+  comp.totalSeasons - comp.yearsPlayed
+  for each matching historical checkpoint
+)
+```
+
+This answers: “players like this **at this year** — how much longer did they go?” No population median involved.
+
+#### Last resort: age cap only
+
+If OLS and comps both fail (`n < 5`):
+
+```
+remainingFromAge = max(0, retireAge - playerAge)
+  retireAge = POSITION_RETIRE_AGE[position] + eliteBonus [+ recentBonus if enabled]
 ```
 
 **Position retire ages (base):** QB 38, RB 30, WR 34, TE 35.
 
-**Elite bonus:** +3 years if `peakTier ≥ 4`, else +1 if `peakTier ≥ 3`.
+**Elite bonus:** +3 on `retireAge` if `peakTier ≥ 4`, else +1 if `peakTier ≥ 3`.
 
-### Config knob: `recentAffectsCareerLength` (default **false**)
+**Recent bonus** (when `recentAffectsCareerLength = true`): +2 if `recentValuableSeasons ≥ 2`, else +1 if `≥ 1`.
 
-When **false** (FFB3 default), `recentBonus`, `productivePath`, and `recentElitePath` are disabled — career length uses **median + age only**.
+Age-only is a weak prior — used only when conditional data is unavailable.
 
-Active checkpoint uses `estimatedTotal` for quartile; `remainingTiers` target is empty (prediction only).
+#### Active checkpoint flow
+
+1. Build checkpoint from profile so far (tiers, age, recent, draft, etc.).
+2. Predict `remainingSeasons` (OLS or fallback).
+3. Set `estimatedTotal` and `careerQuartile`.
+4. Run tier regression + comp blend (Steps 4–6) using that quartile.
+
+`remainingTiers` on the active checkpoint stays empty — we are forecasting, not scoring against a known future.
 
 ---
 
@@ -470,11 +535,13 @@ Starting values from FFB3 ablation — **change here before coding**:
 
 ```ts
 {
-  recentFeatureScale: 0,           // 0 = ignore recent form in regression
-  recentAffectsCareerLength: false, // age + median only for active length
-  dynastyCalibrationWeight: 0,     // phase 12; disabled in phase 11
+  recentFeatureScale: 0,          // 0 = ignore recent form in tier regression (Step 4)
+  recentAffectsCareerLength: true, // recent factors in career-length fallback (Step 7)
+  dynastyCalibrationWeight: 0,    // phase 12; disabled in phase 11
 }
 ```
+
+Career-length OLS (Step 7) always uses recent features at full scale regardless of `recentFeatureScale`.
 
 ---
 
@@ -491,7 +558,7 @@ src/lib/projections/
   types.ts              — ProjectionCheckpoint, PlayerProjection, config
   projection-config.ts  — PROJECTION_CONFIG knobs
   checkpoints.ts        — build checkpoints + active checkpoint
-  career-stage.ts       — quartile, estimated career length
+  career-stage.ts       — quartile, remaining-seasons OLS + fallback
   recent-performance.ts — 3-season window features
   regression.ts         — OLS fit/predict (or shared util)
   projection-models.ts  — train + predict remaining tiers
@@ -534,13 +601,14 @@ Squash to one `Phase 11:` commit on `main` when done.
 
 ## Open questions (edit before implementation)
 
-1. **`recentFeatureScale`** — keep at **0** (FFB3 winner) or enable recent form (e.g. 0.5)?
-2. **`recentAffectsCareerLength`** — keep **false** or let recent production extend RB/QB estimates?
-3. **Comp blend table** — use 10% grid + rerun FFB4 backtest (decided); FFB3 table is placeholder until backtest runs.
-4. **Rookie handling** — skip current-year rookies only, or also second-year players with one season?
-5. **League config on player pages** — hardcode default 16-team PPR for phase 11, or read from shared config/cookie later?
-6. **Backtest script** — include `scripts/backtest-projections.ts` in phase 11 or defer as chore?
-7. **Dynasty calibration** — confirm stays **phase 12** with weight 0 here?
+1. **`recentFeatureScale`** — **0** (decided). FFB4 retest on live DB (Jun 2026): overall MAE 73.1 @ 0 vs 72.8 @ 0.25–1 (best 0.4, Δ 0.3). RB identical across all scales; QB improves slightly with recent; TE slightly worse. Gain too small to justify complexity — keep 0 for tier regression.
+2. **`recentAffectsCareerLength`** — **true** (decided); when false, fallback mean uses age + median only.
+3. **Career length** — **conditional only** (checkpoint OLS + comp mean); no population median subtraction (decided).
+4. **Comp blend table** — use 10% grid + rerun FFB4 backtest (decided); FFB3 table is placeholder until backtest runs.
+5. **Rookie handling** — skip current-year rookies only, or also second-year players with one season?
+6. **League config on player pages** — hardcode default 16-team PPR for phase 11, or read from shared config/cookie later?
+7. **Backtest script** — include `scripts/backtest-projections.ts` in phase 11 or defer as chore?
+8. **Dynasty calibration** — confirm stays **phase 12** with weight 0 here?
 
 ---
 
