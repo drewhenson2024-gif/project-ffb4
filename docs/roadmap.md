@@ -15,24 +15,25 @@ Track build progress here. Status: `planned` → `in-progress` → `done`.
 | 08 — Draft history 1980+ | `feature/08-draft-history` | [phases/08-draft-history.md](./phases/08-draft-history.md) | done |
 | 09 — Import dedupe fix | `feature/09-import-dedupe` | [phases/09-import-dedupe.md](./phases/09-import-dedupe.md) | done |
 | — Baseline verified | — | [02-fresh-start-setup.md](./02-fresh-start-setup.md) | done |
-| 10 — Player valuation | `feature/10-valuation` | *(not started)* | planned |
+| 10 — PAB calculations | `feature/10-player-evaluation` | [phases/10-pab-calculations.md](./phases/10-pab-calculations.md) | in-progress |
+| 11 — Career projections | `feature/11-projections` | *(not started)* | planned |
+| 12 — Player valuation UI | `feature/12-valuation` | *(not started)* | planned |
 
 ## Current status
 
-**Phases 00–09 complete.** Supabase provisioned, migrations applied, nflverse data imported, app verified locally. Setup lessons documented in [02-fresh-start-setup.md](./02-fresh-start-setup.md).
+**Working on:** Phase 10 — PAB calculations on branch `feature/10-player-evaluation`.
 
-**Working on next:** Phase 10 planning (design doc before code).
+PAB tier rates and season classification — **no projections yet**.
 
-## Out of scope until phase 10 is designed (phase 10+)
+## Deferred to phase 11+
 
-- PAB / tier classification
 - Career projection models
 - Dynasty ranking calibration
-- Valuation UI
+- Projected remaining PAB on player pages
 
 ## Lessons carried from FFB3
 
 1. **Data layer first** — schema + import before UI features that depend on it.
 2. **One migration per concern** — easier to debug than monolithic SQL.
 3. **Offline scripts for heavy work** — import runs locally, not in API routes.
-4. **Stop before predictions** — FFB3's projection work needed rework; we defer it intentionally.
+4. **PAB before projections** — establish tier rates and realized values before forecasting.
