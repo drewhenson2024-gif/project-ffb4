@@ -122,12 +122,16 @@ git show abc1234:scripts/import-nflverse.ts       # file at that commit
 
 ## Connecting to GitHub
 
-`gh` is not required. After creating a repo on GitHub:
+FFB4 uses a **separate** GitHub repository from FFB3. Create `project-ffb4` as a new repo — do not push to the FFB3 remote.
+
+`gh` is not required. After creating the new repo on GitHub:
 
 ```bash
-git remote add origin https://github.com/YOUR_USER/project-ffb4.git
+git remote add origin https://github.com/drewhenson2024-gif/project-ffb4.git
 git push -u origin main
 ```
+
+Confirm with `git remote -v` that the URL says `project-ffb4`, not `project-ffb3`.
 
 ## What we deliberately avoid (for now)
 
