@@ -8,6 +8,9 @@
     "start": "next start",
     "lint": "eslint",
     "import:data": "tsx scripts/import-nflverse.ts",
+    "backtest:projection": "tsx scripts/backtest-projections.ts",
+    "sweep:comp": "tsx scripts/sweep-comp-variants.ts",
+    "sweep:regression": "tsx scripts/sweep-regression-variants.ts",
     "db:push": "npx supabase db push",
     "db:link": "npx supabase link",
     "db:login": "npx supabase login"

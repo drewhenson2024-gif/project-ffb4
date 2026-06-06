@@ -1,3 +1,4 @@
+import type { Position } from "@/types/database";
 import type { SeasonTier } from "./types";
 
 export const VALUABLE_TIERS = ["elite", "star", "starter"] as const;
@@ -45,4 +46,49 @@ export function incrementTierCount(
 ): TierSeasonCounts {
   if (!tier || tier === "bench") return counts;
   return { ...counts, [tier]: counts[tier] + 1 };
+}
+
+export function addTierSeasonCounts(
+  a: TierSeasonCounts,
+  b: TierSeasonCounts,
+): TierSeasonCounts {
+  return {
+    elite: a.elite + b.elite,
+    star: a.star + b.star,
+    starter: a.starter + b.starter,
+  };
+}
+
+export type ProjectedCareerValue = {
+  position: Position;
+  realizedCounts: TierSeasonCounts;
+  projectedRemainingCounts: TierSeasonCounts;
+  totalCounts: TierSeasonCounts;
+  realizedPab: number;
+  projectedRemainingPab: number;
+  totalCareerPab: number;
+};
+
+export function buildCareerValue(
+  position: Position,
+  realizedCounts: TierSeasonCounts,
+  projectedRemainingCounts: TierSeasonCounts,
+  rates: TierPabRates,
+): ProjectedCareerValue {
+  const totalCounts = addTierSeasonCounts(realizedCounts, projectedRemainingCounts);
+  const realizedPab = careerPabFromTierCounts(realizedCounts, rates);
+  const projectedRemainingPab = careerPabFromTierCounts(
+    projectedRemainingCounts,
+    rates,
+  );
+
+  return {
+    position,
+    realizedCounts,
+    projectedRemainingCounts,
+    totalCounts,
+    realizedPab,
+    projectedRemainingPab,
+    totalCareerPab: realizedPab + projectedRemainingPab,
+  };
 }

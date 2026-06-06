@@ -199,7 +199,7 @@ checkpointFeatures(..., recentScale) =
 
 ## Step 4 — OLS regression models
 
-### Features (16 total)
+### Features (18 total — `regressionFeatureMode: extended`)
 
 | # | Feature | Notes |
 |---|---------|-------|
@@ -210,7 +210,9 @@ checkpointFeatures(..., recentScale) =
 | 7 | `peakTier` | ordinal 0–4 |
 | 8 | `gamesPlayed` | cumulative |
 | 9 | `playerAge` | from `birth_date`; fallback draft-age proxy |
-| 10–16 | recent features | scaled by `recentFeatureScale` |
+| 10–16 | recent features | scaled by `recentFeatureScale` (**0** in phase 11) |
+| 17 | `careerProgress` | `yearsPlayed / totalSeasons` |
+| 18 | `careerQuartile` | 1–4 ordinal |
 
 ### Targets
 
@@ -231,7 +233,7 @@ For each (position, quartile, tier) group — e.g. RB, Q2, **star** — we have 
 
 | Input | Output (target) |
 |-------|-----------------|
-| 16 features from that checkpoint | `remainingTiers.star` that player actually had |
+| 18 features from that checkpoint | `remainingTiers.star` that player actually had |
 
 **1. Normalize features (z-score)**
 
@@ -247,7 +249,7 @@ Store `μⱼ` and `σⱼ` — needed at prediction time.
 
 **2. Add intercept**
 
-Each row becomes a design vector: `[1, x̃₁, x̃₂, … x̃₁₆]` (17 values).
+Each row becomes a design vector: `[1, x̃₁, x̃₂, … x̃₁₈]` (19 values).
 
 **3. Fit coefficients (ordinary least squares)**
 
@@ -269,7 +271,7 @@ Three models per group (elite, star, starter) — same features, different `y`.
 
 ### How OLS regression works (prediction)
 
-For an active player checkpoint, build the same 16 features, normalize with **training** μ and σ:
+For an active player checkpoint, build the same 18 features, normalize with **training** μ and σ:
 
 ```
 x̃ⱼ = (feature_j - μⱼ) / σⱼ
@@ -295,31 +297,32 @@ Find similar **completed-career checkpoints** at the same career stage; use thei
 
 ### Comp pool
 
-Every training checkpoint is a comp candidate (same fields as query + known `remainingTiers`).
+Every training checkpoint is a comp candidate (precomputed similarity feature vector + known `remainingTiers`).
 
-### Tight match (preferred)
+### Similarity features (18 total)
 
-Same position, same quartile, and:
+Same 16 features as tier regression (`checkpointFeatures`), plus:
 
-| Criterion | Tolerance |
-|-----------|-----------|
-| `yearsPlayed` | ±1 |
-| `elite/star/starter` so far | each ±1 |
-| Draft | both undrafted, **or** draft pick within **24** slots |
+| # | Feature | Notes |
+|---|---------|-------|
+| 17 | `careerProgress` | `yearsPlayed / totalSeasons` |
+| 18 | `careerQuartile` | 1–4 ordinal |
 
-### Loose match (fallback if tight count &lt; 5)
+Recent features use `compRecentFeatureScale` (**1**) — trajectory matters for peer matching even when tier regression ignores recent (`recentFeatureScale = 0`).
 
-Same position, `yearsPlayed` ±2, undrafted status matches (draft pick ignored).
+### Weighted k-NN (replaces tight/loose boolean filters)
 
-### Comp expectation
+1. Hard filter: same **position** only.
+2. Z-score each feature using the position pool; compute **weighted Euclidean distance** (tier counts and `yearsPlayed` weighted highest).
+3. Take top **`compMaxSamples`** (15) nearest neighbors.
+4. Similarity weight per neighbor: `1 / (1 + distance²)`.
+5. `compRemaining[tier]` = **median** of neighbor `remainingTiers[tier]` (`compAggregation: median`).
 
-```
-compRemaining = mean(remainingTiers) across matches
-```
+No quartile or ±1 tier cutoffs — “close enough” is continuous distance, not pass/fail gates.
 
-If no matches: `{ elite: 0, star: 0, starter: 0 }`.
+If fewer than **`compMinSamples`** (5) neighbors exist in the position pool, still use what’s available (`matchType: sparse`). If none: `{ elite: 0, star: 0, starter: 0 }`.
 
-`MIN_COMP_SAMPLES = 5` — switch from tight to loose below this.
+Career-length comp fallback (Step 7) uses the same k-NN pool but averages **calendar seasons remaining** instead of tier counts.
 
 ---
 
@@ -525,7 +528,7 @@ realizedPab           = careerPabFromTierCounts(realizedCounts, rates)
 totalCareerPab        = realizedPab + projectedRemainingPab
 ```
 
-Position PAB rates: same league config as `/pab` (default 16-team PPR).
+Position PAB rates: **same league config the user last set on `/pab`** (cookie), falling back to `DEFAULT_LEAGUE_CONFIG` if none saved.
 
 ---
 
@@ -562,7 +565,7 @@ src/lib/projections/
   recent-performance.ts — 3-season window features
   regression.ts         — OLS fit/predict (or shared util)
   projection-models.ts  — train + predict remaining tiers
-  comp-matching.ts      — tight/loose comp search
+  comp-matching.ts      — weighted k-NN comp similarity
   projection-blends.ts  — BACKTEST_TUNED_COMP_WEIGHT table
   projection-predict.ts — blend regression + comp → PAB
   career-complete.ts    — active vs complete, rookie skip
@@ -573,6 +576,21 @@ Re-exports / thin wrappers over `src/lib/pab/` for classification and rates — 
 
 ---
 
+## Shared league config (`/pab` ↔ player pages)
+
+PAB tier thresholds and rates depend on league settings. **Player-page PAB must use the same config as `/pab`** — not a separate hardcoded default.
+
+| Piece | Behavior |
+|-------|----------|
+| `/pab` form submit | Save config to a **cookie** (same fields as URL search params today) |
+| `/pab` page load | Cookie → URL params on first visit, or read cookie directly |
+| `/players/[id]` | Read cookie server-side → `parseLeagueConfig` → `computePabRates` + projections |
+| No cookie yet | Fall back to `DEFAULT_LEAGUE_CONFIG` (16-team PPR) |
+
+Helper (phase 11): `resolveLeagueConfig(cookies, searchParams?)` in `parse-config.ts` — single source for all PAB math.
+
+**Why cookie:** URL params on `/pab` do not persist when navigating to `/players/123`. Cookie carries the user’s last league setup site-wide.
+
 ## UI (minimal, phase 11)
 
 **Player detail page** (`/players/[id]`):
@@ -581,9 +599,9 @@ Re-exports / thin wrappers over `src/lib/pab/` for classification and rates — 
 - Show **projected remaining PAB** (model output)
 - Show **total career PAB**
 - Optional breakdown: elite / star / starter counts (realized vs projected)
-- Footnote: default league config (16-team PPR); link to `/pab`
+- Footnote: active league settings summary (e.g. “16-team PPR, 1/2/2/1”) + link to `/pab` to change
 
-**Not in phase 11:** sorting `/players` by total PAB, dynasty-adjusted values, league config picker on player pages.
+**Not in phase 11:** sorting `/players` by total PAB, dynasty-adjusted values, duplicate league config form on player pages.
 
 ---
 
@@ -601,13 +619,13 @@ Squash to one `Phase 11:` commit on `main` when done.
 
 ## Open questions (edit before implementation)
 
-1. **`recentFeatureScale`** — **0** (decided). FFB4 retest on live DB (Jun 2026): overall MAE 73.1 @ 0 vs 72.8 @ 0.25–1 (best 0.4, Δ 0.3). RB identical across all scales; QB improves slightly with recent; TE slightly worse. Gain too small to justify complexity — keep 0 for tier regression.
+1. **`recentFeatureScale`** — **0** (decided). Recent trajectory omitted from tier regression; use `regressionFeatureMode: extended` (+ careerProgress, careerQuartile) instead — sweep winner (74.6 vs 79.0 MAE).
 2. **`recentAffectsCareerLength`** — **true** (decided); when false, fallback mean uses age + median only.
 3. **Career length** — **conditional only** (checkpoint OLS + comp mean); no population median subtraction (decided).
 4. **Comp blend table** — use 10% grid + rerun FFB4 backtest (decided); FFB3 table is placeholder until backtest runs.
-5. **Rookie handling** — skip current-year rookies only, or also second-year players with one season?
-6. **League config on player pages** — hardcode default 16-team PPR for phase 11, or read from shared config/cookie later?
-7. **Backtest script** — include `scripts/backtest-projections.ts` in phase 11 or defer as chore?
+5. **Rookie handling** — skip current-year rookies only (decided).
+6. **League config on player pages** — **shared cookie with `/pab`** (decided); `resolveLeagueConfig()` everywhere PAB runs.
+7. **Backtest script** — **include in phase 11** (decided); `npm run backtest:projection`, results in `projection-blends.ts`.
 8. **Dynasty calibration** — confirm stays **phase 12** with weight 0 here?
 
 ---
@@ -616,7 +634,8 @@ Squash to one `Phase 11:` commit on `main` when done.
 
 - [ ] Completed careers produce checkpoints; training runs without error on full DB
 - [ ] Active non-rookie players receive projected remaining tier counts and PAB
-- [ ] Realized PAB on player page matches manual sum from classified seasons (default config)
+- [ ] Realized PAB on player page matches manual sum from classified seasons (user’s saved league config)
+- [ ] Changing league settings on `/pab` updates PAB on player pages after cookie is set
 - [ ] Config knobs documented and centralized in `projection-config.ts`
 - [ ] Phase 12 scope unchanged (no dynasty blend, no valuation rankings page)
 
