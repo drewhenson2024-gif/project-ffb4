@@ -14,11 +14,16 @@ Track build progress here. Status: `planned` → `in-progress` → `done`.
 | 07 — Player pages | `feature/07-player-pages` | [phases/07-player-pages.md](./phases/07-player-pages.md) | done |
 | 08 — Draft history 1980+ | `feature/08-draft-history` | [phases/08-draft-history.md](./phases/08-draft-history.md) | done |
 | 09 — Import dedupe fix | `feature/09-import-dedupe` | [phases/09-import-dedupe.md](./phases/09-import-dedupe.md) | done |
+| — Baseline verified | — | [02-fresh-start-setup.md](./02-fresh-start-setup.md) | done |
 | 10 — Player valuation | `feature/10-valuation` | *(not started)* | planned |
 
-## Out of scope for baseline (phase 10+)
+## Current status
 
-Revisit only after baseline is stable on GitHub with clean history:
+**Phases 00–09 complete.** Supabase provisioned, migrations applied, nflverse data imported, app verified locally. Setup lessons documented in [02-fresh-start-setup.md](./02-fresh-start-setup.md).
+
+**Working on next:** Phase 10 planning (design doc before code).
+
+## Out of scope until phase 10 is designed (phase 10+)
 
 - PAB / tier classification
 - Career projection models

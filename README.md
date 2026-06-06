@@ -29,26 +29,23 @@ cp .env.example .env.local
 
 Create a **new** Supabase project and fill in its URL and keys — do not use FFB3 credentials. Full steps: [docs/02-fresh-start-setup.md](docs/02-fresh-start-setup.md).
 
-3. Run migrations in the Supabase SQL Editor (in order):
+3. Fill in `.env.local` — API keys plus `DATABASE_URL` (Session pooler URI from the **Connect** button). See [docs/02-fresh-start-setup.md](docs/02-fresh-start-setup.md).
 
-- `supabase/migrations/001_player_fantasy_schema.sql`
-- `supabase/migrations/002_player_identity_metadata.sql`
-- `supabase/migrations/003_fix_refresh_career_stats.sql`
-- `supabase/migrations/004_expand_draft_history.sql`
+4. Run migrations from the terminal:
 
-4. Import nflverse data:
+```bash
+npm run db:push
+```
+
+5. Import nflverse data (loads into Supabase — not committed to GitHub):
 
 ```bash
 npm run import:data
 ```
 
-Then refresh career totals:
+Career stats refresh runs automatically at the end of import.
 
-```sql
-select refresh_player_career_stats();
-```
-
-5. Start the dev server:
+6. Start the dev server:
 
 ```bash
 npm run dev
