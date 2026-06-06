@@ -71,6 +71,12 @@ export default async function Home() {
               >
                 Draft capital →
               </Link>
+              <Link
+                href="/dynasty-picks"
+                className="inline-flex w-fit items-center rounded-full border border-emerald-500/40 px-6 py-3 text-sm font-semibold text-emerald-300 transition-colors hover:border-emerald-400 hover:text-emerald-200"
+              >
+                Dynasty picks →
+              </Link>
             </div>
           </>
         ) : (

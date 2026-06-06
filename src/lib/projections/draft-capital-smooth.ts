@@ -377,6 +377,15 @@ export function predictLogDraftCapital(
   );
 }
 
+/** Smoothed draft-capital value at an NFL overall pick (monotone curve). */
+export function draftCapitalAtPick(
+  model: LogDraftCapitalModel,
+  pick: number,
+): number {
+  if (pick < 1 || pick > MAX_DRAFT_PICK) return 0;
+  return buildCurveFromModel(model)[pick];
+}
+
 export function smoothLogDraftCapitalSeries(
   position: Position,
   raw: number[],
