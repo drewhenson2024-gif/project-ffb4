@@ -15,6 +15,10 @@ export function draftPicksUrl(): string {
   return `${NFLVERSE_BASE}/draft_picks/draft_picks.csv`;
 }
 
+export function playersUrl(): string {
+  return `${NFLVERSE_BASE}/players/players.csv`;
+}
+
 export function seasonStatsUrl(season: number): string {
   return `${NFLVERSE_BASE}/stats_player/stats_player_reg_${season}.csv`;
 }

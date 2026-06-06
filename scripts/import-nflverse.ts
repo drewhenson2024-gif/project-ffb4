@@ -11,6 +11,7 @@ import {
   draftPicksUrl,
   halfPprPoints,
   isSkillPosition,
+  playersUrl,
   resolveExternalId,
   seasonStatsUrl,
   type SkillPosition,
@@ -59,6 +60,12 @@ type StatsRow = {
   fantasy_points_ppr: string;
 };
 
+type PlayerRow = {
+  gsis_id: string;
+  pfr_id: string;
+  birth_date: string;
+};
+
 type PlayerSeed = {
   externalId: string;
   displayName: string;
@@ -67,6 +74,7 @@ type PlayerSeed = {
   suffix: string | null;
   primaryPosition: SkillPosition;
   pfrPlayerId: string | null;
+  birthDate: string | null;
   debutSeason: number | null;
   finalSeason: number | null;
   draftYear: number | null;
@@ -79,6 +87,54 @@ function num(value: string | undefined): number {
 
 function statInt(value: string | undefined): number {
   return Math.max(0, Math.round(num(value)));
+}
+
+function normalizeBirthDate(value: string | undefined): string | null {
+  const trimmed = value?.trim();
+  if (!trimmed || !/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return null;
+  return trimmed;
+}
+
+async function loadBirthDateLookups(): Promise<{
+  byGsis: Map<string, string>;
+  byPfr: Map<string, string>;
+}> {
+  console.log("Loading nflverse player birth dates...");
+  const playersCsv = await downloadCsv(playersUrl(), "players.csv");
+  const rows = parse(playersCsv, {
+    columns: true,
+    skip_empty_lines: true,
+  }) as PlayerRow[];
+
+  const byGsis = new Map<string, string>();
+  const byPfr = new Map<string, string>();
+
+  for (const row of rows) {
+    const birthDate = normalizeBirthDate(row.birth_date);
+    if (!birthDate) continue;
+
+    const gsisId = row.gsis_id?.trim();
+    if (gsisId) byGsis.set(gsisId, birthDate);
+
+    const pfrId = row.pfr_id?.trim();
+    if (pfrId) byPfr.set(pfrId, birthDate);
+  }
+
+  console.log(`  Birth dates: ${byGsis.size} by gsis_id, ${byPfr.size} by pfr_id`);
+  return { byGsis, byPfr };
+}
+
+function resolveBirthDate(
+  externalId: string,
+  pfrPlayerId: string | null,
+  lookups: { byGsis: Map<string, string>; byPfr: Map<string, string> },
+  existing: string | null | undefined,
+): string | null {
+  if (existing) return existing;
+  const fromGsis = lookups.byGsis.get(externalId);
+  if (fromGsis) return fromGsis;
+  if (pfrPlayerId) return lookups.byPfr.get(pfrPlayerId) ?? null;
+  return null;
 }
 
 async function loadPlayerIdMap(
@@ -164,6 +220,7 @@ async function main() {
   const supabase = createClient(supabaseUrl, secretKey);
   const players = new Map<string, PlayerSeed>();
   const everDraftedIds = new Set<string>();
+  const birthLookups = await loadBirthDateLookups();
 
   console.log("Loading nflverse draft picks...");
   const draftCsv = await downloadCsv(draftPicksUrl(), "draft_picks.csv");
@@ -184,6 +241,7 @@ async function main() {
     const normalized = normalizePlayerName(row.pfr_player_name);
     const existing = players.get(externalId);
 
+    const pfrPlayerId = row.pfr_player_id || existing?.pfrPlayerId || null;
     players.set(externalId, {
       externalId,
       displayName: normalized.displayName,
@@ -191,7 +249,13 @@ async function main() {
       nameKey: normalized.nameKey,
       suffix: normalized.suffix,
       primaryPosition: row.position as SkillPosition,
-      pfrPlayerId: row.pfr_player_id || null,
+      pfrPlayerId,
+      birthDate: resolveBirthDate(
+        externalId,
+        pfrPlayerId,
+        birthLookups,
+        existing?.birthDate,
+      ),
       debutSeason: existing?.debutSeason ?? null,
       finalSeason: existing?.finalSeason ?? null,
       draftYear: draftYear >= DRAFT_START ? draftYear : (existing?.draftYear ?? null),
@@ -222,6 +286,7 @@ async function main() {
       );
       const existing = players.get(externalId);
 
+      const pfrPlayerId = existing?.pfrPlayerId ?? null;
       players.set(externalId, {
         externalId,
         displayName: normalized.displayName,
@@ -229,7 +294,13 @@ async function main() {
         nameKey: normalized.nameKey,
         suffix: normalized.suffix,
         primaryPosition: row.position as SkillPosition,
-        pfrPlayerId: existing?.pfrPlayerId ?? null,
+        pfrPlayerId,
+        birthDate: resolveBirthDate(
+          externalId,
+          pfrPlayerId,
+          birthLookups,
+          existing?.birthDate,
+        ),
         debutSeason: existing?.debutSeason
           ? Math.min(existing.debutSeason, season)
           : season,
@@ -297,6 +368,7 @@ async function main() {
       is_undrafted: isUndrafted,
       debut_season: player.debutSeason,
       final_season: player.finalSeason,
+      birth_date: player.birthDate,
     };
   });
 
@@ -387,6 +459,8 @@ async function main() {
   console.log(`  Draft picks (${DRAFT_START}+): ${uniqueDraftRows.length}`);
   console.log(`  Season stat rows:     ${fantasyInsertRows.length}`);
   console.log(`  Verified undrafted:   ${undraftedWithStats}`);
+  const withBirthDate = playerRows.filter((row) => row.birth_date).length;
+  console.log(`  With birth_date:      ${withBirthDate}/${playerRows.length}`);
   const duplicateGroups = [...duplicateNameKeys.entries()].filter(
     ([, count]) => count > 1,
   ).length;

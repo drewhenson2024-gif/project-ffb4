@@ -13,6 +13,7 @@ export type Player = {
   is_undrafted: boolean;
   debut_season: number | null;
   final_season: number | null;
+  birth_date: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -106,6 +107,7 @@ export type PlayerProfile = {
   debut_season: number | null;
   final_season: number | null;
   pfr_player_id: string | null;
+  birth_date: string | null;
   draft_year: number | null;
   draft_round: number | null;
   draft_pick_overall: number | null;
