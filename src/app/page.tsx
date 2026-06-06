@@ -1,8 +1,23 @@
 import { SetupNotice } from "@/components/setup-notice";
 import { createServerClient } from "@/lib/supabase/server";
 import Link from "next/link";
+import type { ReactNode } from "react";
+
+/** Supabase counts — skip static prerender (needs env at runtime). */
+export const dynamic = "force-dynamic";
 
 export default async function Home() {
+  if (
+    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    !process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+  ) {
+    return (
+      <HomeShell>
+        <SetupNotice message="Missing Supabase env vars. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY in the host environment (e.g. Vercel → Settings → Environment Variables)." />
+      </HomeShell>
+    );
+  }
+
   const supabase = createServerClient();
 
   const { count: playerCount, error: playerError } = await supabase
@@ -21,20 +36,7 @@ export default async function Home() {
   const isReady = !error && (playerCount ?? 0) > 0;
 
   return (
-    <div className="min-h-full bg-gradient-to-b from-emerald-950 via-zinc-950 to-black text-white">
-      <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-16">
-        <header>
-          <p className="text-sm font-medium uppercase tracking-[0.2em] text-emerald-400">
-            Project FFB4
-          </p>
-          <h1 className="mt-2 text-4xl font-bold tracking-tight">
-            Fantasy Football Database
-          </h1>
-          <p className="mt-3 max-w-2xl text-zinc-400">
-            Fantasy stats from 2000 onward, linked to draft history back to 1980.
-          </p>
-        </header>
-
+    <HomeShell>
         {error && isMissingTable ? (
           <SetupNotice message="The player database schema has not been created yet. Run the migration SQL files in your Supabase project." />
         ) : error ? (
@@ -104,6 +106,26 @@ export default async function Home() {
             />
           </dl>
         </section>
+    </HomeShell>
+  );
+}
+
+function HomeShell({ children }: { children: ReactNode }) {
+  return (
+    <div className="min-h-full bg-gradient-to-b from-emerald-950 via-zinc-950 to-black text-white">
+      <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-16">
+        <header>
+          <p className="text-sm font-medium uppercase tracking-[0.2em] text-emerald-400">
+            Project FFB4
+          </p>
+          <h1 className="mt-2 text-4xl font-bold tracking-tight">
+            Fantasy Football Database
+          </h1>
+          <p className="mt-3 max-w-2xl text-zinc-400">
+            Fantasy stats from 2000 onward, linked to draft history back to 1980.
+          </p>
+        </header>
+        {children}
       </main>
     </div>
   );
